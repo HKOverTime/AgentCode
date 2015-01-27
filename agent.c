@@ -3,8 +3,10 @@
 #define THE_SPEED  921600
 #ifdef WIN32
     char DevName[100] = "COM2";
+    char TestVM_name[100] = "OT's Window Test VM";
 #else
     char DevName[100] = "/dev/ttyS1";
+    char TestVM_name[100] = "OT's Linux Test VM";
 #endif
 
 int main(){
@@ -22,30 +24,6 @@ int main(){
 Printf("Hello Debug env\n");
 //Printf("Hello nrecv = %d\n", nrecv);
 
-
-#ifdef WIN32
-    char buffer[200] = "Hello from windows\n";
-    nwrite = API_Serial_Send(id,buffer,strlen(buffer));
-    printf("\nwrite [%d] : %s \n",nwrite,buffer);
-    nrecv = API_Serial_recv(id,recvbuf,
-            1023);
-    recvbuf[nrecv] = '\0';
-    printf("\nrecv [%d] : %s",nrecv,recvbuf);
-#else
-    char buffer[200] = "Hello from linux\n";
-    nrecv = API_Serial_recv(id,recvbuf,
-            1023);
-    recvbuf[nrecv] = '\0';
-    printf("\nrecv [%d] : %s",nrecv,recvbuf);
-    nwrite = API_Serial_Send(id,buffer,strlen(buffer));
-    printf("\nwrite [%d] : %s \n",nwrite,buffer);
-#endif
-/*    while ((nrecv = API_Serial_recv(id,recvbuf,
-            1023)) != SERIAL_RECV_ERROR){
-        recvbuf[nrecv] = '\0';
-        printf("\nrecv [%d] : %s",nrecv,recvbuf);
-        nwrite = API_Serial_Send(id,buffer,strlen(buffer));
-        printf("\nwrite [%d] : %s \n",nwrite,buffer);
-    }
-*/
+    Pro_Connect_And_Send_VmInfo_From_Agent(id,1023,"192.168.1.1",LINUX_OS_TYPE,TestVM_name);
+    Pro_Waite_CMD_AND_DO_IT(id);
 }

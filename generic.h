@@ -28,9 +28,27 @@
     #include<errno.h>
 #endif // head files check
 
+#ifdef WIN32
+    #define SERIAL_HANDLE_ID HANDLE
+    #define SERIAL_HANDLE_ID_ERROR (HANDLE)(-1)
+    #define MIC_USLEEP(x)  usleep(x)
+    #define MIC_SLEEP(x)   Sleep(x)
+#else 
+    #define SERIAL_HANDLE_ID int
+    #define SERIAL_HANDLE_ID_ERROR (-1)
+    #define FALSE               -1
+    #define TRUE                 0
+    #define MIC_USLEEP(x)  sleep(x)
+    #define MIC_SLEEP(x)   sleep(x * 1000)
+    typedef unsigned long DWORD;
+#endif // 
+
 // my headers start from here
+#include "CMD_Protocol/CMDProtocol.h"
+#include "VM_Info.h"
 #include "Serial_Base_API.h"
 // end my headers
+
 
 
 #ifdef _DEBUG_PRINT_

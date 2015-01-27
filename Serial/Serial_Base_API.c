@@ -232,7 +232,7 @@ DWORD Serial_Recv_Bytes(SERIAL_HANDLE_ID id, char *buffer,DWORD buflen){
 #endif
         i++ ;   
         bufnum += nrecv;
-Printf(" Serial_Recv_Bytes ==> bufnum = %d , nrecv = %d , buflen = %d.\n",bufnum,nrecv,buflen);
+//Printf(" Serial_Recv_Bytes ==> bufnum = %d , nrecv = %d , buflen = %d.\n",bufnum,nrecv,buflen);
         if ( bufnum == buflen ){
             break;
         }
@@ -283,7 +283,7 @@ DWORD API_Serial_Send(SERIAL_HANDLE_ID id, char *buffer,DWORD buflen){
     return bytes_send;
 }
 
-DWORD API_Serial_recv(SERIAL_HANDLE_ID id, char *buffer,
+DWORD API_Serial_Recv(SERIAL_HANDLE_ID id, char *buffer,
         DWORD maxlen){
     DWORD nrecv  = 0,recvlen; 
     int i = 0,flag = 1;

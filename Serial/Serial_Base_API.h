@@ -3,18 +3,6 @@
 
 #include "../generic.h"
 
-#ifdef WIN32
-    #define SERIAL_HANDLE_ID HANDLE
-    #define SERIAL_HANDLE_ID_ERROR (HANDLE)(-1)
-    #define MIC_USLEEP(x)  usleep(x)
-#else 
-    #define SERIAL_HANDLE_ID int
-    #define SERIAL_HANDLE_ID_ERROR (-1)
-    #define FALSE               -1
-    #define TRUE                 0
-    #define MIC_USLEEP(x)  sleep(x)
-    typedef unsigned long DWORD;
-#endif // 
 #define SERIAL_MAX_PACKAGE     255 // 255*255 65025
 #define MAX_WHILE_TIMES         20 // 连续20次收不到数据就返回 
 #define SERIAL_INIT_ENV_OK       1
@@ -30,7 +18,7 @@ SERIAL_HANDLE_ID API_Serial_Open(char *Dev,int speed,
     // 错误时返回 SERIAL_HANDLE_ID_ERROR;
 DWORD API_Serial_Send(SERIAL_HANDLE_ID id, char *buffer,DWORD buflen);
     // 正确时返回发送的字节数，错误时返回 SERIAL_SEND_ERROR
-DWORD API_Serial_recv(SERIAL_HANDLE_ID id, char *buffer,DWORD maxlen);
+DWORD API_Serial_Recv(SERIAL_HANDLE_ID id, char *buffer,DWORD maxlen);
     // 正确时返回收到的字节数，错误时返回 SERIAL_RECV_ERROR
 int API_Serial_close(SERIAL_HANDLE_ID id);
 
