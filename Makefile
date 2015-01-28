@@ -3,8 +3,9 @@ DEBUG_FLAGS += \
 	$(DEFS)
 
 # 基础库代码文件的位置
-LIB_SRCS = ./Serial/Serial_Base_API.c \
-			./CMD_Protocol/CMDProtocol.c
+LIB_SRCS = ./BASE_API/Serial_Base_API.c \
+			./BASE_API/File_Base_API.c \
+			./CMD_Protocol/CMDProtocol.c 
 # agent 相关代码文件位置
 AGENT_SRC = agent.c
 # client 相关文件位置
@@ -47,5 +48,7 @@ client : $(HOST_SRCS)
 	cc $(DEBUG_FLAGS) $(HOST_INCS) -c $(HOST_SRCS) 
 	cc $(DEBUG_FLAGS) $(HOST_INCS) -o host_client $(HOST_TARGET) 
 	rm $(HOST_TARGET)
+	cp host_client.exe ../
+	cd ..
 clean:
 	rm $(PRODUCT) $(HOST_PRODUCT) $(TARGET) $(HOST_TARGET)

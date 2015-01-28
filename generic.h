@@ -47,6 +47,7 @@
 #include "CMD_Protocol/CMDProtocol.h"
 #include "VM_Info.h"
 #include "Serial_Base_API.h"
+#include "File_Base_API.h"
 // end my headers
 
 

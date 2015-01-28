@@ -6,7 +6,7 @@ int Pro_Env_Init(){
 
 #define MAX_ADD_FILE_SIZE            1000
 #define MIC_FOR_RECV_BUF_LEN         1023
-#define MAX_FILE_NAME_LEN            255
+//#define MAX_FILE_NAME_LEN            255
 #define PRO_UP_FILE_ERROR             -1
 #define PRO_UP_FILE_OK                 1
 
@@ -15,6 +15,7 @@ int Pro_Env_Init(){
         #define FILE_PATH_ERROR      -1
         #define FILE_CAN_CREATE       5
         #define FILE_ADD_ERROR       -1
+        #define FILE_ADD_OK           6
         #define TO_FILE_PATH_NAME     1
         #define ADD_FILE_DATA         2
         #define TO_FILE_ADD_END       3
@@ -40,13 +41,27 @@ int file_serial_touch(SERIAL_HANDLE_ID VM_ID, char *filepath){
     nsend = API_Serial_Send(VM_ID,buffer,to_file_path_len + 4);
     
     nrecv = API_Serial_Recv(VM_ID,recvbuf,MIC_FOR_CONN_BUF_LEN);
-    if(nrecv != 3 
+    if(nrecv != 4 
         || recvbuf[0] != GENERAL_CMD 
         || recvbuf[1] != UP_FILE_CMD
         || recvbuf[2] == FILE_PATH_ERROR ){
         return S_FILE_TOUCH_ERROR ;
     }
+Printf("The file pool id is %d\n",recvbuf[3]);
     return recvbuf[3];
+}
+
+int file_serial_send_file_id(SERIAL_HANDLE_ID id,int file_id){
+    char buffer[MIC_FOR_CONN_BUF_LEN] ;
+    int nsend = -1;
+Printf("The file id is %d\n", file_id);
+    buffer[0] = GENERAL_CMD;
+    buffer[1] = UP_FILE_CMD;
+    buffer[2] = FILE_CAN_CREATE;
+    buffer[3] = (char)file_id;
+    nsend = API_Serial_Send(id,buffer,4);
+    
+    return file_id;
 }
 
 int file_serial_add_date(SERIAL_HANDLE_ID VM_ID,int file_id,
@@ -59,6 +74,7 @@ int file_serial_add_date(SERIAL_HANDLE_ID VM_ID,int file_id,
         return S_ADD_FILE_ERROR;
     }
 
+Printf("ADD file data now\n");
     buffer[0] = GENERAL_CMD;
     buffer[1] = UP_FILE_CMD;
     buffer[2] = ADD_FILE_DATA;
@@ -75,18 +91,18 @@ int file_serial_add_date(SERIAL_HANDLE_ID VM_ID,int file_id,
         || recvbuf[2] == FILE_ADD_ERROR ){
         return S_ADD_FILE_ERROR ;
     }
+Printf("%d -->  ADD data END. [size=%d]\n", file_id,size);
 }
 
-int file_serial_send_file_id(SERIAL_HANDLE_ID id,int file_id){
+int file_serial_send_Add_File_OK(SERIAL_HANDLE_ID id){
     char buffer[MIC_FOR_CONN_BUF_LEN] ;
     int nsend = -1;
     buffer[0] = GENERAL_CMD;
     buffer[1] = UP_FILE_CMD;
-    buffer[2] = FILE_CAN_CREATE;
-    buffer[3] = (char)file_id;
+    buffer[2] = FILE_ADD_OK;
     nsend = API_Serial_Send(id,buffer,3);
     
-    return file_id;
+    return 1;
 }
 
 int file_serial_check_size(SERIAL_HANDLE_ID VM_ID,int file_id,
@@ -94,8 +110,14 @@ int file_serial_check_size(SERIAL_HANDLE_ID VM_ID,int file_id,
     return S_FILE_CHECK_SIZE_OK;
 }
 
-
 int file_serial_close(SERIAL_HANDLE_ID VM_ID,int file_id){
+    char buffer[MIC_FOR_CONN_BUF_LEN] ;
+    int nsend = -1;
+    buffer[0] = GENERAL_CMD;
+    buffer[1] = UP_FILE_CMD;
+    buffer[2] = TO_FILE_ADD_END;
+    buffer[3] = (char)file_id;
+    nsend = API_Serial_Send(VM_ID,buffer,3);
     return S_FILE_CLOSE_OK;
 }
 
@@ -119,8 +141,9 @@ int Pro_Up_File(SERIAL_HANDLE_ID VM_ID, char *From_File_Path_On_Host,
     ///   file can create
     ///   send file data now
     char helloWorld[100] = "Hello World!\n";
+    int str_len = strlen(helloWorld);
     file_serial_add_date ( VM_ID , file_ID ,
-         helloWorld , strlen( helloWorld ) );
+         helloWorld , str_len );
     ///   check file size and close it 
     file_serial_check_size ( VM_ID , file_ID , 100);
     file_serial_close ( VM_ID , file_ID );
@@ -128,13 +151,14 @@ int Pro_Up_File(SERIAL_HANDLE_ID VM_ID, char *From_File_Path_On_Host,
 
 int UP_FILE_CMD_DO(SERIAL_HANDLE_ID id,char *recvbuf){
     int TheFileNumber = 1;
-int i = 16;
+int i = 3;
     switch(recvbuf[0]){
         case TO_FILE_PATH_NAME:
 Printf("This is a TO_FILE_PATH_NAME\n");
 Printf("The To_FILE_NAME_LEN is  %d.\n",(recvbuf[1]));
 Printf("The To_FILE_NAME is %s.\n",&(recvbuf[2]));
-             file_serial_send_file_id(id, TheFileNumber);
+            TheFileNumber = API_File_Open(&(recvbuf[2]));
+            file_serial_send_file_id(id, TheFileNumber);
             return TheFileNumber;
             break;
         case ADD_FILE_DATA:
@@ -143,6 +167,8 @@ Printf("The ADD_FILE_NUMBER is  %d.\n",(recvbuf[1]));
 Printf("The ADD_FILE_SIZE is  %d.\n",(recvbuf[2]));
 Printf("The FILE_DATA is %s.\n",&(recvbuf[3]));
 Printf("The recv[%d] is %d.\n",i,recvbuf[i]);
+            API_File_Write(recvbuf[1],&(recvbuf[3]),recvbuf[2]);
+            file_serial_send_Add_File_OK(id);
             return TheFileNumber;
             break;
         case CHECK_FILE_SIZE:
@@ -151,6 +177,7 @@ Printf("CHECK THE FILE \n");
             break;
         case TO_FILE_ADD_END:
 Printf("CLOSE THE FILE \n");
+            API_File_Close(recvbuf[1]);
             return TheFileNumber;
             break;
     }
