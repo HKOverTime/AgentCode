@@ -17,13 +17,28 @@ int main(){
     }
     char recvbuf[1024] ;
     int nrecv = 0,nwrite;
+    int i = 0;
+    unsigned char c,d;
 
 
 Printf("Hello Debug env\n");
 //Printf("Hello nrecv = %d\n", nrecv);
 
-    
     Pro_Check_The_VmInfo_On_Host(id);
-    Pro_Up_File(id, "from.txt","to.txt");
-    while (1){MIC_SLEEP(100);}
+//    Pro_Up_File(id, "from.txt","to.txt");
+    Pro_Down_File(id, "from.txt","to.txt");
+    while (1){MIC_SLEEP(100);}  
+/*    
+    API_Serial_Recv( id ,  &c , 1);
+    while(i < 255){
+        
+        c = c +1;
+        API_Serial_Send( id , &c ,1 );
+Printf("right %d\n", c);
+        API_Serial_Recv( id , &d , 1);
+        if (d != c){
+Printf("d =  %d  c = %d.\n",d,c);
+        }
+        i ++;
+    } */
 }

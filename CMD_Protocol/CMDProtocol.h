@@ -26,6 +26,8 @@
 int Pro_Env_Init();
 int Pro_Up_File(SERIAL_HANDLE_ID VM_ID, char *From_File_Path_On_Host,
     char *To_File_Path_On_Vm);
+int Pro_Down_File(SERIAL_HANDLE_ID VM_ID, char *From_File_Path_On_Host,
+    char *To_File_Path_On_Vm);
 int Pro_Waite_CMD_AND_DO_IT(SERIAL_HANDLE_ID VM_ID);
 
 int Pro_Connect_And_Send_VmInfo_From_Agent(SERIAL_HANDLE_ID VM_ID,

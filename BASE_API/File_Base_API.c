@@ -44,11 +44,34 @@ int API_Init_File_ENV(){
     }
     return 1;
 }
-    
-int API_File_Open(char *name){
+
+
+int API_File_Read_Open(char *name){
     FILE *pf;
     int poolnum;
-    pf = fopen(name,FILE_OPEN_MODE);
+    if( strlen(name) > MAX_FILE_NAME_LEN){
+        return FILE_OPEN_ERROR;
+    }
+    pf = fopen(name,FILE_OPEN_READ_MODE);
+    if( NULL == pf ){
+        return FILE_OPEN_ERROR;
+    }
+    poolnum = get_file_pool_num();
+    if(poolnum == GET_FILE_POOL_NUM_ERROR){
+        fclose(pf);
+        return FILE_OPEN_ERROR;
+    }
+    set_file_pool_pf(poolnum,name,pf);
+    return poolnum;
+}
+    
+int API_File_Write_Open(char *name){
+    FILE *pf;
+    int poolnum;
+    if( strlen(name) > MAX_FILE_NAME_LEN){
+        return FILE_OPEN_ERROR;
+    }
+    pf = fopen(name,FILE_OPEN_WRITE_MODE);
     if( NULL == pf ){
         return FILE_OPEN_ERROR;
     }
@@ -80,7 +103,10 @@ int API_File_Read (int fnum,char *buf,int read_size){
     FILE *p = get_pf(fnum);
     real_size = fread(buf,1,read_size,p);
     if(real_size != read_size){
-        if (feof(p)){
+        if(real_size == 0){
+            return FILE_READ_END;
+        }
+        else if (feof(p)){
             return real_size;
         }
         else{

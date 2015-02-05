@@ -1,7 +1,7 @@
 #include "Serial_Base_API.h"
 
+// *************************************************************************
 #ifdef WIN32
-
 HANDLE win32_OpenComm(char *Dev,int speed,
         int databits,int stopbits){
     HANDLE hCom;  
@@ -17,7 +17,7 @@ HANDLE win32_OpenComm(char *Dev,int speed,
         printf("Error :  COM Create !\n");
         return (HANDLE)(-1);
     }
-    SetupComm(hCom,1024,1024); 
+    SetupComm(hCom,102400,102400); 
          
      
     COMMTIMEOUTS TimeOuts;  
@@ -25,20 +25,20 @@ HANDLE win32_OpenComm(char *Dev,int speed,
     TimeOuts.ReadIntervalTimeout=1000;  
     TimeOuts.ReadTotalTimeoutMultiplier=500;  
     TimeOuts.ReadTotalTimeoutConstant=5000;  
-        TimeOuts.WriteTotalTimeoutMultiplier=500;  
-        TimeOuts.WriteTotalTimeoutConstant=2000;  
-     SetCommTimeouts(hCom,&TimeOuts);  
-        
-        DCB dcb;  
-        GetCommState(hCom,&dcb);  
-        dcb.BaudRate=speed;  
-        dcb.ByteSize=databits; 
-        dcb.Parity=NOPARITY; 
-        dcb.StopBits=stopbits ; 
-        SetCommState(hCom,&dcb);  
-         
-        PurgeComm(hCom,PURGE_TXCLEAR|PURGE_RXCLEAR);  
-        return hCom;
+    TimeOuts.WriteTotalTimeoutMultiplier=500;  
+    TimeOuts.WriteTotalTimeoutConstant=2000;  
+    SetCommTimeouts(hCom,&TimeOuts);  
+
+    DCB dcb;  
+    GetCommState(hCom,&dcb);  
+    dcb.BaudRate=speed;  
+    dcb.ByteSize=databits; 
+    dcb.Parity=NOPARITY; 
+    dcb.StopBits=stopbits ; 
+    SetCommState(hCom,&dcb);  
+     
+    PurgeComm(hCom,PURGE_TXCLEAR|PURGE_RXCLEAR);  
+    return hCom;
 }
 
 
@@ -77,10 +77,16 @@ int set_Parity(int fd,int databits,int stopbits,int parity) {
         return(FALSE);
     }
 
-    options.c_cflag &= ~CSIZE;
-    //options.c_iflag |= ECHO;             
-    options.c_lflag  &= ~(ICANON | ECHO | ECHOE | ISIG);  /*Input*/
-    options.c_oflag  &= ~OPOST;   /*Output*/ 
+//    options.c_cflag &= ~CSIZE;
+//    //options.c_iflag |= ECHO;             
+//    options.c_lflag  &= ~(ICANON | ECHO | ECHOE | ISIG);  /*Input*/
+//    options.c_iflag  &= ~ICRNL;
+//    options.c_oflag  &= ~(OPOST | ONLCR | OCRNL );   /*Output*/ 
+    options.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);  
+    options.c_oflag &= ~OPOST;  
+    options.c_cflag |= CLOCAL | CREAD;  
+    options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);  
+    // http://blog.csdn.net/yangbingzhou/article/details/39520297
 
     switch (databits) /*ÉèÖÃÊýŸÝÎ»Êý*/
     {
@@ -161,7 +167,76 @@ int OpenDev(char *Dev)
     return -1;
 }
 #endif
+// *************************************************************************
 
+int Serial_Flush_Buffers(SERIAL_HANDLE_ID id){
+#ifdef WIN32
+//    FlushFileBuffers(id);
+#else
+//    tcflush(id,TCIOFLUSH);
+#endif
+    return 1;
+}
+
+DWORD Serial_Send_Bytes(SERIAL_HANDLE_ID id, char *buffer,DWORD buflen){
+    DWORD nwrite = buflen;
+#ifdef WIN32
+    BOOL bWriteStat;
+    bWriteStat = WriteFile(id , buffer,buflen,&nwrite,NULL);
+if(nwrite != buflen) Printf("nwrite != buflen");
+    if(!bWriteStat){
+        printf("Error in WriteFile function !\n");
+        return SERIAL_SEND_ERROR;
+    }
+#else
+    nwrite = write(id,buffer,buflen);
+    if(nwrite != buflen){
+Printf("nwrite != buflen");
+        return SERIAL_SEND_ERROR;
+    }
+#endif
+    return nwrite;
+}
+
+DWORD Serial_Recv_Bytes(SERIAL_HANDLE_ID id, char *buffer,DWORD buflen){
+    DWORD nrecv = buflen; 
+    DWORD bufnum = 0;
+    int i =0 ;
+    while(i < MAX_WHILE_TIMES){
+#ifdef WIN32
+        BOOL bReadStat;
+        bReadStat = ReadFile(id,&(buffer[bufnum]),buflen-bufnum,&nrecv,NULL);  
+        if(!bReadStat)  
+        {  
+            printf("Error : read file !\n");  
+            return SERIAL_RECV_ERROR;
+        }  
+#else
+        nrecv = read(id,&(buffer[bufnum]),buflen-bufnum);
+        if (nrecv <0){
+            return SERIAL_RECV_ERROR;
+        }
+#endif
+        i++ ;   
+        bufnum += nrecv;
+//Printf(" Serial_Recv_Bytes ==> bufnum = %d , nrecv = %d , buflen = %d.\n",bufnum,nrecv,buflen);
+        if (nrecv > 0 ){ 
+            i = 0;
+        }
+        if ( bufnum == buflen ){
+//Printf("RECV OK --> %d .\n",bufnum);
+            break;
+        }
+        nrecv = 0;
+        MIC_USLEEP(1);
+    }
+    if(i == MAX_WHILE_TIMES){
+        return SERIAL_RECV_ERROR;
+    }
+    return bufnum;
+}
+
+// *************************************************************************
 
 int API_init_serial_env(){
     return SERIAL_INIT_ENV_OK;
@@ -171,7 +246,6 @@ SERIAL_HANDLE_ID API_Serial_Open(char *Dev,int speed,
         int databits,int stopbits){
     SERIAL_HANDLE_ID id;
 #ifdef WIN32
-    
     id =  win32_OpenComm(Dev, speed,
          databits, stopbits);
     return id;
@@ -192,77 +266,25 @@ SERIAL_HANDLE_ID API_Serial_Open(char *Dev,int speed,
 }
 
 
-DWORD Serial_Send_Bytes(SERIAL_HANDLE_ID id, char *buffer,DWORD buflen){
-    DWORD nwrite = buflen;
-#ifdef WIN32
-    BOOL bWriteStat;
-    bWriteStat = WriteFile(id , buffer,buflen,&nwrite,NULL);
-    if(!bWriteStat){
-        printf("Error in WriteFile function !\n");
-        return SERIAL_SEND_ERROR;
-    }
-#else
-    nwrite = write(id,buffer,buflen);
-    if(nwrite != buflen){
-        return SERIAL_SEND_ERROR;
-    }
-#endif
-    return nwrite;
-}
-
-DWORD Serial_Recv_Bytes(SERIAL_HANDLE_ID id, char *buffer,DWORD buflen){
-    DWORD nrecv = buflen; 
-    DWORD bufnum = 0;
-    int i =0 ;
-    while(i < MAX_WHILE_TIMES){
-                                                      
-#ifdef WIN32
-        BOOL bReadStat;
-        bReadStat = ReadFile(id,&(buffer[bufnum]),buflen-bufnum,&nrecv,NULL);  
-        if(!bReadStat)  
-        {  
-            printf("Error : read file !\n");  
-            return SERIAL_RECV_ERROR;
-        }  
-#else
-        nrecv = read(id,&(buffer[bufnum]),buflen-bufnum);
-        if (nrecv <0){
-            return SERIAL_RECV_ERROR;
-        }
-#endif
-        i++ ;   
-        bufnum += nrecv;
-//Printf(" Serial_Recv_Bytes ==> bufnum = %d , nrecv = %d , buflen = %d.\n",bufnum,nrecv,buflen);
-        if ( bufnum == buflen ){
-            break;
-        }
-        if (nrecv > 0 ){ 
-            i = 0;
-        }
-        nrecv = 0;
-        MIC_USLEEP(1);
-    }
-    if(i == MAX_WHILE_TIMES){
-        return SERIAL_RECV_ERROR;
-    }
-    return bufnum;
-}
-
 DWORD API_Serial_Send(SERIAL_HANDLE_ID id, char *buffer,DWORD buflen){
     DWORD bytes_left = buflen;
     int i = 0;
     DWORD bytes_send = 0;
+    char FF_num = SERIAL_MAX_PACKAGE;
     if (buflen > SERIAL_MAX_PACKAGE * SERIAL_MAX_PACKAGE ){
+//Printf("SEND buflen is %d. \n",buflen);
         return SERIAL_SEND_ERROR;
     }
     unsigned char c =(unsigned char) (buflen / SERIAL_MAX_PACKAGE + 1);
-                                     
+             // send pack number                        
+//Printf("SEND before pack_num is %d. \n",c);
     Serial_Send_Bytes( id , &c , 1 );
+//Printf("SEND pack_num is %d. \n",c);
     while(bytes_left>0){
         if(bytes_left > SERIAL_MAX_PACKAGE) {
-            Serial_Send_Bytes(id,"\xFF",1);
+            Serial_Send_Bytes(id,&FF_num,1);
             bytes_send += 
-             Serial_Send_Bytes(id,&(buffer[i*SERIAL_MAX_PACKAGE]),256);
+             Serial_Send_Bytes(id,&(buffer[i*SERIAL_MAX_PACKAGE]),FF_num);
             bytes_left -= SERIAL_MAX_PACKAGE;
         }
         else {
@@ -279,7 +301,7 @@ DWORD API_Serial_Send(SERIAL_HANDLE_ID id, char *buffer,DWORD buflen){
     if(bytes_send != buflen) {
         return SERIAL_SEND_ERROR   ;
     }
-
+    Serial_Flush_Buffers(id);
     return bytes_send;
 }
 
@@ -289,31 +311,37 @@ DWORD API_Serial_Recv(SERIAL_HANDLE_ID id, char *buffer,
     int i = 0,flag = 1;
     unsigned char c ,pack_num;
 
+Printf("RECV: Wait recv pack_num now\n");
     recvlen = Serial_Recv_Bytes( id , &pack_num ,1 );
                                                    
     if (recvlen != 1){
         return SERIAL_RECV_ERROR;
     }
-    
-    while( i < pack_num ){
+//Printf("RECV: The packnum is %d .\n",pack_num);
+    while( i < pack_num  ){
         recvlen = Serial_Recv_Bytes( id , &c ,1 );
                                      
         if (c < 0 ||  //将要收取小于0字节的数据包
               nrecv + c >= maxlen || // 所收取的数据将引起缓冲区溢出 
               SERIAL_RECV_ERROR == recvlen || // 接收错误
               recvlen != 1 ){ // 无数据包头的值或包头值接收错误
-            flag = 0;
+//Printf("RECV SERIAL DATA ERROR !\n");
             return SERIAL_RECV_ERROR; // overflow
         }
+//Printf("RECV pack-len is %d , start recv now !\n",c);
                                       
         recvlen = Serial_Recv_Bytes(id,&(buffer[nrecv]),c);
                                
         if(SERIAL_RECV_ERROR != recvlen && recvlen == c) {
+//Printf("RECV recvlen == c %d !\n",c);
             nrecv += recvlen;
+        }
+        else{
+//Printf("RECV again now\n",c);
         }
         i ++;
     }
-
+    Serial_Flush_Buffers(id);
     return nrecv;
 }
 
